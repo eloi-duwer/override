@@ -1,0 +1,9 @@
+The program reads a number, and checks if the number is 0x149c (5276 in decimal) and lauches a shell
+
+We just type 5276 and we are authenticated:
+
+level00@OverRide:~$ ./level00 
+***********************************
+* 	         -Level00 -		      *
+***********************************
+Password:5276
