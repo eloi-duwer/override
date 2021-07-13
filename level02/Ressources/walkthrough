@@ -1,0 +1,35 @@
+The program reads the password file and puts it in a string on the stack,
+and it calls printf with whatever we put into the username.
+
+We can dump the stack by using the formatting options of printf:
+
+%lx prints 8 bytes of whatever is on the stack when printf is called
+
+As this program is 64 bits, we will dump the stack starting of the 7th argument on printf,
+the 6 first arguments are stored in registers (http://6.s081.scripts.mit.edu/sp18/x86-64-architecture-guide.html)
+
+Let's dump the stack by calling the program repeatidly:
+
+for i in {7..40}; do echo "%$i\$lx" | ./level02; done 
+
+it prints a bunch of garbage (all the puts of the program), let's complete our command:
+
+for i in {7..40}; do echo "%$i\$lx" | ./level02; done | grep "does not" | cut -d " " -f 1 | xargs -I{} python -c "print '{}'.decode('hex')[::-1]" 2> /dev/null
+explanation:
+| grep "does not" : keep only the result line, not the part where the program asks our username and password
+| cut -d " " -f 1 : keep only the first part of the line, it is 8 bytes of the stack as a hex number
+| xargs -I{}      : Use xargs to "redirect" stdin to python arguments, every occurrence of "{}" will be replaced by the actual number
+python -c "print '{}'.decode('hex')[::-1]" : decode the number (from hex to string), and reverse it as it is little endian
+2> /dev/null      : Most of the stack don't contain strings, and .decode will throw errors when it can't decode the string (when it has an odd number of characters), so we ignore them
+
+Running this shell script returns this:
+Hh74RPnu
+Q9sa5JAE
+XgNWCqz7
+sXGnh5J5
+M9KfPg3H
+%28$lx
+)
+
+The first 5 strings seems to be the flag, as they are 40 characters in total, the length of the flags.
+Concatenating them gives us the flag, and the program launches a shell when we enter it as a password
