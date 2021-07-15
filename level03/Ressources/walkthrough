@@ -1,0 +1,19 @@
+Wee see that the program xors each chars of the string "Q}|u`sfg~sf{}|a3"
+with (322424845 - <our password as an int>),
+and checks it againts the string "Congratulations!"
+
+But XOR does not really encrypt, as it is it's own reverse:
+
+if   c = a ^ b
+then a = b ^ c
+
+Let's test with our message, with python:
+
+>>> ord('Q') ^ ord('C')
+18
+>>> ord('}') ^ ord('o')
+18
+>>> ord('|') ^ ord('n')
+18
+
+18 seems to be the good key, 322424845 - 18 = 322424827, that is the good password.
