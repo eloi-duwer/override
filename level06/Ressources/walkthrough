@@ -1,0 +1,24 @@
+The program reads a username and calculates it's hash
+and checks it againts the serial number we entered, if it is long enough
+
+there is a light "anti debug" check with ptrace, we can bypass it easilly and see
+the calculated hash for a given uername without having to reverse the hash or find a collision:
+
+gdb level06
+(gdb) b *0x080487ba (just after ptrace)
+(gdb) b *0x08048866 (before the comparison between the hash and our serial)
+(gdb) run
+-> Enter Login: get_pwned
+-> Enter Serial: 4242 (we don't care for now)
+Breakpoint 1, 0x080487ba in auth ()
+(gdb) info reg
+
+eax is -1, the call to ptrace failed, let's change it
+
+(gdb) set $eax=0
+(gdb) c
+Breakpoint 2, 0x08048866 in auth ()
+(gdb) x/d $ebp - 0x10
+0xffffd6a8:     6235748
+
+the good serial for the user get_pwned is 6235748, we can authenticate now!
