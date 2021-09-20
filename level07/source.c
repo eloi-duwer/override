@@ -68,7 +68,7 @@ int main(int argc, char **argv, char **envp)
 	int				ret = 0; // 0x1b4(%esp)
 	char			input[20] = {0}; // 0x1b8(%esp)
 	
-	memset(data, 0, 64 * 4);
+	memset(data, 0, 100 * sizeof(unsigned int));
 	clear_argv(argv);
 	clear_argv(envp);
 	puts("----------------------------------------------------\n\

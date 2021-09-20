@@ -8,7 +8,7 @@ We can dump the stack by using the formatting options of printf:
 As this program is 64 bits, we will dump the stack starting of the 7th argument on printf,
 the 6 first arguments are stored in registers (http://6.s081.scripts.mit.edu/sp18/x86-64-architecture-guide.html)
 
-Let's dump the stack by calling the program repeatidly:
+Let's dump the stack by calling the program repeatedly:
 
 for i in {7..40}; do echo "%$i\$lx" | ./level02; done 
 

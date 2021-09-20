@@ -1,0 +1,26 @@
+We see that the program tries to copy the file passed in argument, in the folder backups.
+
+We also see that conveniently, the program makes the new file readable by it's own user and group (S_IRUSR | S_IRGRP),
+the program ./level08 belongs to the user level09 but to the group 'users',
+and the output of `id` shows that we also belong tho the group 'users'
+
+So the program can copy the file /home/users/level09/.pass, and wherever it writes it we can read it...
+
+But when we try: ./level08 /home/users/level09/.pass, we get an error:
+
+ERROR: Failed to open ./backups//home/users/level09/.pass
+
+We see that the program tries to open a file in the folder ./backups//home/users/level09/.pass
+
+The folder ./backups//home/users/level09/ does not exist, so the creation fails.
+
+We can try an mkdir -p ./backups//home/users/level09/ but we don't have the rights on the backups folder in our home.
+
+We can however create this folder in /tmp, and it works:
+
+> cd /tmp
+> mkdir -p ./backups//home/users/level09/
+> ~/level08 /home/users/level09/.pass
+> cat backups/home/users/level09/.pass
+
+and we have the flag
