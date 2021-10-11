@@ -7,28 +7,24 @@ typedef struct	s_msg {
 	size_t		msg_len; // 0xb4(%rax)
 }				t_msg;
 
-void handle_msg(void);
-void set_username(t_msg *msg);
-void set_msg(t_msg *msg);
-void secret_backdoor(void);
-
-int main()
+void secret_backdoor(void)
 {
-	puts("--------------------------------------------\n|   ~Welcome to l33t-m$n ~    v1337        |\n--------------------------------------------");
-	handle_msg();
-	return (0);
+	char str[128]; // -0x80(%rbp)
+
+	fgets(str, 128, stdin /* 0x20171d(%rip) ? */); 
+	system(str);
 }
 
-void handle_msg(void)
+void set_msg(t_msg *_m)
 {
-	t_msg msg;  // -0xc0(%rbp)
-	msg.msg_len = 140; // -0xc(%rbp) ??? found @ handle_msg + 63
+	t_msg	*msg = _m; // -0x408(%rbp)
+	char	str[1024]; // -0x400(%rbp)
 
-	memset(msg.username, 0, 40);
-
-	set_username(&msg);
-	set_msg(&msg);
-	puts(">: Msg sent!");
+	memset(str, 0, 1024);
+	puts(">: Msg @Unix-Dude");
+	printf(">>: ");
+	fgets(str, 1024, stdin /* 0x201630(%rip) is stdin ? */);
+	strncpy(msg->msg, str, msg->msg_len);
 }
 
 void set_username(t_msg *_m)
@@ -51,22 +47,21 @@ void set_username(t_msg *_m)
 	printf(">: Welcome, %s", msg->username);
 }
 
-void set_msg(t_msg *_m)
+void handle_msg(void)
 {
-	t_msg	*msg = _m; // -0x408(%rbp)
-	char	str[1024]; // -0x400(%rbp)
+	t_msg msg;  // -0xc0(%rbp)
+	msg.msg_len = 140; // -0xc(%rbp) ??? found @ handle_msg + 63
 
-	memset(str, 0, 1024);
-	puts(">: Msg @Unix-Dude");
-	printf(">>: ");
-	fgets(str, 1024, stdin /* 0x201630(%rip) is stdin ? */);
-	strncpy(msg->msg, str, msg->msg_len);
+	memset(msg.username, 0, 40);
+
+	set_username(&msg);
+	set_msg(&msg);
+	puts(">: Msg sent!");
 }
 
-void secret_backdoor(void)
+int main()
 {
-	char str[128]; // -0x80(%rbp)
-
-	fgets(str, 128, stdin /* 0x20171d(%rip) ? */); 
-	system(str);
+	puts("--------------------------------------------\n|   ~Welcome to l33t-m$n ~    v1337        |\n--------------------------------------------");
+	handle_msg();
+	return (0);
 }

@@ -19,7 +19,7 @@ int main()
 	char	str[64]; // 0x1c(%esp)
 	int		test;  // 0x5c(%esp)
 
-	memset(str, 0, 16 * 4);
+	memset(str, 0, 64);
 	test = 0;
 	puts("********* ADMIN LOGIN PROMPT *********");
 	printf("Enter Username: ");
@@ -31,12 +31,11 @@ int main()
 		return (1);
 	}
 	puts("Enter Password: ");
-	fgets(str, 100, stdin);
+	fgets(str, 0x64, stdin);
 	test = verify_user_pass(str);
 	if (test != 0 || 1) // The assembly is not clear, it seems that no matter what it will print incorrect password...
 	{
 		puts("nope, incorrect password...\n");
 		return (1);
 	}
-
 }

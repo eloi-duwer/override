@@ -37,7 +37,7 @@ int test(int a, int b)
 	{
 		return (decrypt(rand()));
 	}
-	// I'm not sure about that, the asm seems to use an array of pointers to functions (0x80489f0) and call a function stored in it but the array only contains references to decrypt?
+	// I'm not sure about that, the asm seems to use an array of pointers to functions (0x80489f0, at test+37) and call a function stored in it but the array only contains references to decrypt?
 	// The array seems to be kinda optimised away and what remains could not really be created in C afaik
 	// It might be some obfuscation techniques, I think the levels comes from another project, the start of the main and get_unum / clear_stdin / prog_timeout funcs (in gdb info func)
 	// seems to come from https://github.com/RPISEC/MBE/blob/master/include/utils.h
